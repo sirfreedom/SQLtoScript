@@ -22,12 +22,6 @@ namespace Front
 
         #endregion
 
-        #region Declaration
-
-        private string _PathScript = string.Empty;
-
-        #endregion
-        
         #region Load
 
         private void ucSQLServer_Load(object sender, EventArgs e)
@@ -41,108 +35,43 @@ namespace Front
 
         private void GetTables() 
         {
-            DataSet ds = new DataSet();
-            if (txtBase.Text.Length == 0 || txtServer.Text.Length == 0) 
+            List<SQLServerManager.TableInfo> lTableInfo = new List<SQLServerManager.TableInfo>();
+            try
             {
-                return;
-            }
-            SQLServerManager oSql = new SQLServerManager(txtBase.Text, txtServer.Text, txtUser.Text, txtPassword.Text,txtSchema.Text,chkIntegratedSecurity.Checked);
-            ds = oSql.GetTables();
-            gvTablesSQL.DataSource = ds.Tables["tablanombres"];
- 
-            if (ds.Tables["tablarelaciones"].Rows.Count > 1 )
-            {
-                gvTablesSQL.SelectRows("chksel", "id", ds.Tables["tablarelaciones"], "id");
-                MessageBox.Show("Se han encontrado tablas con relaciones. Para no romper con la INTEGRIDAD REFERENCIAL debe incluirlas, en caso contrario, no podra insertar otras que dependen de ellas", "Integridad Referencial", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
+                if (txtBase.Text.Length == 0 || txtServer.Text.Length == 0)
+                {
+                    return;
+                }
+                SQLServerManager oSql = new SQLServerManager(txtBase.Text, txtServer.Text, txtUser.Text, txtPassword.Text, chkIntegratedSecurity.Checked);
+                lTableInfo = oSql.GetTables();
+                gvTablesSQL.DataSource = lTableInfo;
 
-        private void CleanFields() 
-        {
-            txtPathScript.Text = string.Empty;
-            _PathScript = string.Empty;
-            gvTablesSQL.CleanRows();
-            txtSchema.Text = string.Empty;
-            txtServer.Text = string.Empty;
-            txtUser.Text = string.Empty;
-            txtServer.Text = string.Empty;
-            txtPassword.Text = string.Empty;
-            chkIntegratedSecurity.Checked = false;
-            txtBase.Text = string.Empty;
-            btnExport.Enabled = false;
+                if (lTableInfo.Exists(x => x.Relacion == true))
+                {
+                     MessageBox.Show("Se han encontrado tablas con relaciones. Para no romper con la INTEGRIDAD REFERENCIAL debe incluirlas, en caso contrario, no podra insertar otras que dependen de ellas", "Integridad Referencial", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex) 
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         private void SetPath()
         {
-            SaveFileDialog sf = new SaveFileDialog();
-            sf.DefaultExt = "sql";
-            sf.Filter = "Sql Script (*.sql)|*.sql|Sql Script (*.txt)|*.txt";
-            sf.ShowDialog();
-            _PathScript = sf.FileName;
-            txtPathScript.Text = _PathScript; 
+            FolderBrowserDialog fb = new FolderBrowserDialog();
+            fb.ShowDialog();
+            txtPathScript.Text = fb.SelectedPath + "\\";
         }
 
-        private void Export() 
+        private void CleanFields() 
         {
-            string sScript = string.Empty;
-
-            if (txtBase.Text.Length == 0  || txtPathScript.Text.Length == 0 )
-            {
-                MessageBox.Show("VERIFIQUE Base","Campos Requeridos", MessageBoxButtons.OK,MessageBoxIcon.Warning);
-                return;
-            }
-            if (txtServer.Text.Length == 0)
-            {
-                MessageBox.Show("VERIFIQUE Server", "Campos Requeridos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            if (txtPathScript.Text.Length == 0)
-            {
-                MessageBox.Show("VERIFIQUE PATH donde dejar el Script, presione 'Open' para seleccionarlo.", "Campos Requeridos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            if (gvTablesSQL.Rows.Count == 0) 
-            {
-                MessageBox.Show("Verifique las tablas seleccionadas", "verifique tablas seleccionadas", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            try
-            {
-
-                SQLServerManager oSql = new SQLServerManager(txtBase.Text, txtServer.Text, txtUser.Text, txtPassword.Text, txtSchema.Text, chkIntegratedSecurity.Checked);
-               
-                if (opPunto.Checked)
-                {
-                    oSql.Lenguaje = SQLServerManager.LenguajePuntoComa.Punto;
-                }
-                else 
-                {
-                    oSql.Lenguaje = SQLServerManager.LenguajePuntoComa.Coma;
-                }
-
-                if (opOracle.Checked)
-                {
-                    sScript = oSql.SaveOutputScript_Oracle(gvTablesSQL.GetSeleccionados("chkSel", "nombre"));
-                }
-                if (opSQL2000.Checked) 
-                {
-                    sScript = oSql.SaveOutputScript_SQL2000(gvTablesSQL.GetSeleccionados("chkSel", "nombre"));
-                }
-                if (opSQL2005.Checked) 
-                {
-                    sScript = oSql.SaveOutputScript_SQL2005(gvTablesSQL.GetSeleccionados("chkSel", "nombre"));
-                }
-
-                File.AppendAllText(_PathScript, sScript, Encoding.UTF8);
-            
-            }
-            catch (Exception ex) 
-            {
-                MessageBox.Show( ex.ToString(),"error", MessageBoxButtons.OK,MessageBoxIcon.Error);
-            }
+            gvTablesSQL.CleanRows();
+            chkIntegratedSecurity.Checked = false;
+            txtBase.Text = string.Empty;
+            btnExport.Enabled = false;
         }
-
+        
         #endregion
 
         #region Eventos
@@ -162,12 +91,83 @@ namespace Front
         private void btnExport_Click(object sender, EventArgs e)
         {
             lblCargando.Visible = true;
-            WorkerSql.RunWorkerAsync();
+            List<string> lTables = new List<string>();
+            SQLServerManager.ParameterExport oParam = new SQLServerManager.ParameterExport();
+            string sPath = string.Empty;
+            
+            if (txtBase.Text.Length == 0 )
+            {
+                MessageBox.Show("VERIFIQUE Base", "Campos Requeridos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (txtServer.Text.Length == 0)
+            {
+                MessageBox.Show("VERIFIQUE Server", "Campos Requeridos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (txtPathScript.Text.Length == 0)
+            {
+                MessageBox.Show("VERIFIQUE PATH donde dejar el Script, presione 'Open' para seleccionarlo.", "Campos Requeridos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (gvTablesSQL.Rows.Count == 0 || gvTablesSQL.GetSeleccionados("chkSel", "TableName").Count == 0)
+            {
+                MessageBox.Show("Verifique las tablas seleccionadas", "verifique tablas seleccionadas", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (opPunto.Checked)
+            {
+                oParam.PuntoComa = SQLServerManager.LenguajePuntoComa.Punto;
+            }
+            else
+            {
+                oParam.PuntoComa = SQLServerManager.LenguajePuntoComa.Coma;
+            }
+            
+            oParam.lTables = gvTablesSQL.GetSeleccionados("chkSel", "TableName");
+
+            if (opOracle.Checked) 
+            {
+                oParam.TipoMotorExport = SQLServerManager.TipoMotor.Oracle;
+            }
+
+            if (opSQL2000.Checked) 
+            {
+                oParam.TipoMotorExport = SQLServerManager.TipoMotor.SqlServer2000;
+            }
+
+            if (opSQL2005.Checked)
+            {
+                oParam.TipoMotorExport = SQLServerManager.TipoMotor.SqlServer2005;
+            }
+
+            oParam.PathInicial = txtPathScript.Text;
+            oParam.Base = txtBase.Text;
+            oParam.IntegratedSecurity = chkIntegratedSecurity.Checked;
+            oParam.PassBase = txtPassword.Text;
+            oParam.Schema = txtSchema.Text;
+            oParam.Server = txtServer.Text;
+            oParam.UserBase = txtUser.Text;
+            oParam.RowPerPage = int.Parse(txtCantidadRegistrosPorArchivo.Text);
+            WorkerSql.RunWorkerAsync(oParam);
         }
 
         private void WorkerSql_DoWork(object sender, DoWorkEventArgs e)
         {
-            Export();
+            string sScript = string.Empty;
+            SQLServerManager oSql;
+            SQLServerManager.ParameterExport oParam = new SQLServerManager.ParameterExport();
+            oParam = (SQLServerManager.ParameterExport)e.Argument;
+            try
+            {
+                oSql = new SQLServerManager(oParam.Base, oParam.Server, oParam.UserBase, oParam.PassBase, oParam.IntegratedSecurity);
+                oSql.SaveOutputScript(oParam.lTables, oParam.TipoMotorExport, oParam.PathInicial,oParam.Schema,oParam.RowPerPage);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString(), "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void WorkerSql_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
@@ -190,6 +190,9 @@ namespace Front
         }
 
         #endregion
+
+
+       
 
     }
 }

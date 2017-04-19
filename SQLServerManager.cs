@@ -13,6 +13,7 @@ using System.Data.OleDb;
 using System.Data.SqlClient;
 using System.Text;
 using System.Windows.Forms;
+using System.IO;
 
 namespace ScriptUtil
 {
@@ -23,18 +24,17 @@ namespace ScriptUtil
         #region Declaration
 
         private string DbConectionString = string.Empty;
-        private string _Schema = string.Empty;
-        DataSet _dsAllData = new DataSet();
-        DataSet _dsTablesInfo = new DataSet();
-        private TipoMotor _MotorBaseDeDatos;
+             
         private LenguajePuntoComa _Lenguaje;
 
-        private enum TipoMotor
+        public enum TipoMotor
         {
             Oracle = 1,
-            SqlServer = 2,
-            SoloInsert = 4
+            SqlServer2000 = 2,
+            SoloInsert = 4,
+            SqlServer2005 = 6
         }
+
 
         public enum LenguajePuntoComa 
         { 
@@ -53,17 +53,14 @@ namespace ScriptUtil
 
         #region Constructor / Destructor / Dispose
 
-        public SQLServerManager(string BaseName, string ServerName, string User, string Pass, string Schema,bool IntegrateSecurity)
+        public SQLServerManager(string BaseName, string ServerName, string User, string Pass,bool IntegrateSecurity)
         {
-            _Schema = Schema;
             this.DbConectionString = this.ConectionStringManagerSql(BaseName, ServerName, User, Pass,IntegrateSecurity);
         }
 
         ~SQLServerManager() 
         {
             //mueren los recursos pero es mas limpio quitarlos de la memoria.
-            _dsAllData = null;
-            _dsTablesInfo = null;
         }
         
         #endregion
@@ -103,92 +100,77 @@ namespace ScriptUtil
 
         #region Method Get Data
 
-        private void GetAllData(List<string> SelectTables)
+        [Obsolete("Funcion de obtencion de data obsoleta")]
+        private DataTable GetAllData(string ActiveTable, string Schema, DataSet dsTablesInfo) 
         {
             SqlConnection connection = new SqlConnection();
             SqlCommand cmd = new SqlCommand();
             SqlDataAdapter da = new SqlDataAdapter(cmd);
-            DataSet ds = new DataSet();
+            DataTable dt = new DataTable("dtData");
             DataTable dtConsultas = new DataTable();
             StringBuilder sbTablasFilter = new StringBuilder();
             StringBuilder sbConsultaIni = new StringBuilder();
             string sConsulta = string.Empty;
-            string ConsultaRelacion = "select * from &tabla& where isnull(&idpadre&,0) &igualdad& 0";
+            //string ConsultaRelacion = "select * from &tabla& where isnull(&idpadre&,0) &igualdad& 0";
             string ConsultaIni = "SELECT top 500000 * from "; //no mas de cien mil registros
-            string Schema = string.Empty;
             try
             {
                 connection.ConnectionString = this.DbConectionString;
                 connection.Open();
                 cmd.Connection = connection;
 
-                int iFinal = 0;
-                while (iFinal < SelectTables.Count)
-                {
-                    sbTablasFilter.Append("'");
-                    sbTablasFilter.Append(SelectTables[iFinal]);
-                    sbTablasFilter.Append("'");
-                    if ((SelectTables.Count - 1) != iFinal)
-                    {
-                        sbTablasFilter.Append(",");
-                    }
-                    iFinal++;
-                }
-
-                sbConsultaIni.Append(ConsultaIni);
+               sbConsultaIni.Append(ConsultaIni);
 
                 //inteligentemente genera el schema en caso de que exista.
-                if (_Schema.Length != 0)
+                if (Schema.Length != 0)
                 {
-                    Schema = "[" + _Schema + "].";
+                    Schema = "[" + Schema + "].";
                 }
 
-                //nos trae las tablas que mayor relaciones tienen para insertarlas primero.
-                sConsulta = "select so.name as nombre, count(*) relaciones FROM SYSOBJECTS so left join sysforeignkeys sfk on sfk.rkeyid = so.id WHERE TYPE = 'U' AND NAME != 'dtproperties' and so.name in ( " + sbTablasFilter.ToString() + " )  group by so.name order by relaciones desc";
-                cmd.CommandText = sConsulta;
-                da.Fill(dtConsultas);
-            
+                ////nos trae las tablas que mayor relaciones tienen para insertarlas primero.
+                //sConsulta = "select so.name as nombre, count(*) relaciones FROM SYSOBJECTS so left join sysforeignkeys sfk on sfk.rkeyid = so.id WHERE TYPE = 'U' AND NAME != 'dtproperties' and so.name in ( " + ActiveTable + " )  group by so.name order by relaciones desc";
+                //cmd.CommandText = sConsulta;
+                //da.Fill(dtConsultas);
+
                 //va llenando un dataset con datos uno a uno.
-                foreach (DataRow drConsulta in dtConsultas.Rows)
-                {
-                    DataTable dtActiveTable = new DataTable();
-                    string nombretabla = string.Empty;
-                    nombretabla = drConsulta["nombre"].ToString();
-                    bool bTieneRelacion = false;
+                //foreach (DataRow drConsulta in dtConsultas.Rows)
+                //{
+                //    DataTable dtActiveTable = new DataTable();
+                //    string nombretabla = string.Empty;
+                //    nombretabla = drConsulta["nombre"].ToString();
+                //    bool bTieneRelacion = false;
 
-                    // este for sirve para que en el caso de que exista una tabla que esta relacionada consigo misma y este entre nuestra seleccion de tablas no nos traiga problemas
-                    foreach (DataRow drConRelaciones in _dsTablesInfo.Tables["tablarelacionunivoca"].Rows) 
-                    { 
-                        if(nombretabla.Equals(drConRelaciones["TableName"].ToString()))
-                        {
-                            bTieneRelacion = true;
-                            string ColumnaRelacion = string.Empty;
-                            DataTable dtAdional = new DataTable();
-                            ColumnaRelacion = drConRelaciones["ColumnName"].ToString();
+                //    // este for sirve para que en el caso de que exista una tabla que esta relacionada consigo misma y este entre nuestra seleccion de tablas no nos traiga problemas
+                //    foreach (DataRow drConRelaciones in dsTablesInfo.Tables["tablarelacionunivoca"].Rows)
+                //    {
+                //        if (nombretabla.Equals(drConRelaciones["TableName"].ToString()))
+                //        {
+                //            bTieneRelacion = true;
+                //            string ColumnaRelacion = string.Empty;
+                //            DataTable dtAdional = new DataTable();
+                //            ColumnaRelacion = drConRelaciones["ColumnName"].ToString();
 
-                            //hacemos una consulta sobre los items que el idpadre es null 
-                            cmd.CommandText = ConsultaRelacion.Replace("&tabla&", Schema + nombretabla).Replace("&idpadre&", ColumnaRelacion).Replace("&igualdad&", "=");
-                            da.Fill(dtActiveTable);
-                            //hacemos una consulta sobre los items que el idpadre es un numero y tiene relacion directa con la pk para evitar errores.
-                            cmd.CommandText = ConsultaRelacion.Replace("&tabla&", Schema + nombretabla).Replace("&idpadre&", ColumnaRelacion).Replace("&igualdad&", "!=");
-                            da.Fill(dtAdional);
+                //            //hacemos una consulta sobre los items que el idpadre es null 
+                //            cmd.CommandText = ConsultaRelacion.Replace("&tabla&", Schema + nombretabla).Replace("&idpadre&", ColumnaRelacion).Replace("&igualdad&", "=");
+                //            da.Fill(dtActiveTable);
+                //            //hacemos una consulta sobre los items que el idpadre es un numero y tiene relacion directa con la pk para evitar errores.
+                //            cmd.CommandText = ConsultaRelacion.Replace("&tabla&", Schema + nombretabla).Replace("&idpadre&", ColumnaRelacion).Replace("&igualdad&", "!=");
+                //            da.Fill(dtAdional);
 
-                           //es un union manual, para que primero inserte los registros ordenados
-                            dtActiveTable.Merge(dtAdional);
-                        }
-                    }
-                    
-                    if(bTieneRelacion == false)
-                    {
-                        cmd.CommandText = sbConsultaIni.ToString() + Schema + nombretabla;
-                        da.Fill(dtActiveTable);    
-                    }
+                //            //es un union manual, para que primero inserte los registros ordenados
+                //            dtActiveTable.Merge(dtAdional);
+                //        }
+                //    }
 
-                    dtActiveTable.TableName = nombretabla;
-                    ds.Tables.Add(dtActiveTable);
-                }
+                //    if (bTieneRelacion == false)
+                //    {
+                //        cmd.CommandText = sbConsultaIni.ToString() + Schema + nombretabla;
+                //        da.Fill(dtActiveTable);
+                //    }
 
-                _dsAllData = ds;
+                //    dtActiveTable.TableName = nombretabla;
+                //    //ds.Tables.Add(dtActiveTable);
+                //}
             }
             catch (OleDbException oleex)
             {
@@ -205,20 +187,23 @@ namespace ScriptUtil
                     connection.Close();
                 }
             }
+            return dt;
         }
 
-        public DataSet GetTables()
+        public List<TableInfo> GetTables()
         {
             SqlConnection connection = new SqlConnection();
             DataSet dsTables = new DataSet("dsTables");
             SqlCommand cmd = new SqlCommand();
             SqlDataAdapter da = new SqlDataAdapter(cmd);
             StringBuilder sbConsultas = new StringBuilder();
+            List<TableInfo> lTableInfo = new List<TableInfo>();
             try
             {
-                sbConsultas.AppendLine("SELECT id,name FROM SYSOBJECTS WHERE TYPE = 'U' AND NAME != 'dtproperties'  ");
+                sbConsultas.AppendLine("SELECT id,name FROM SYSOBJECTS WHERE TYPE = 'U' AND NAME != 'dtproperties' AND NAME != 'sysdiagrams' ");
                 sbConsultas.AppendLine();
-                sbConsultas.AppendLine("select sfk.rkeyid as id,so.name, count(*) relaciones from sysforeignkeys sfk inner join sysobjects so on so.id = sfk.rkeyid group by sfk.rkeyid, so.name having count(*) > 1 order by relaciones desc  ");
+                sbConsultas.AppendLine("select sfk.rkeyid as id,so.name, count(*) relaciones from sysforeignkeys sfk inner join sysobjects so on so.id = sfk.rkeyid group by sfk.rkeyid, so.name order by relaciones desc ");
+                sbConsultas.AppendLine();
                 connection.ConnectionString = this.DbConectionString;
                 cmd.CommandType = CommandType.Text;
                 cmd.Connection = connection;
@@ -226,8 +211,24 @@ namespace ScriptUtil
                 cmd.CommandText = sbConsultas.ToString();
                 connection.Open();
                 da.Fill(dsTables);
-                dsTables.Tables[0].TableName = "tablanombres";
-                dsTables.Tables[1].TableName = "tablarelaciones";
+
+                foreach (DataRow drNombre in dsTables.Tables[0].Rows) 
+                {
+                    TableInfo t = new TableInfo();
+                    t.Id = drNombre["id"].ToString();
+                    t.TableName = drNombre["Name"].ToString();
+                   
+                    foreach (DataRow drRelacion in dsTables.Tables[1].Rows) 
+                    {
+                        if (drNombre["id"].ToString() == drRelacion["id"].ToString()) 
+                        {
+                            t.Relacion = true;
+                            continue;
+                        }
+                    }
+
+                    lTableInfo.Add(t);
+                }
             }
             catch (SqlException sqlex)
             {
@@ -237,25 +238,33 @@ namespace ScriptUtil
             {
                 throw ex;
             }
-            return dsTables;
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+            return lTableInfo;
         }
 
-        private void GetTablesInfo(List<string> lTables)
+        public DataSet GetTablesInfo(List<string> SelectTables) 
         {
             SqlConnection connection = new SqlConnection();
             SqlCommand cmd = new SqlCommand();
             SqlDataAdapter da = new SqlDataAdapter(cmd);
             StringBuilder sbConsultas = new StringBuilder();
             StringBuilder sbTablasFilter = new StringBuilder();
+            DataSet _dsTablesInfo = new DataSet();
+            int iFinal = 0;
             try
             {
-                int iFinal = 0;
-                while (iFinal < lTables.Count)
+                while (iFinal < SelectTables.Count)
                 {
                     sbTablasFilter.Append("'");
-                    sbTablasFilter.Append(lTables[iFinal]);
+                    sbTablasFilter.Append(SelectTables[iFinal]);
                     sbTablasFilter.Append("'");
-                    if ((lTables.Count - 1) != iFinal)
+                    if ((SelectTables.Count - 1) != iFinal)
                     {
                         sbTablasFilter.Append(",");
                     }
@@ -276,6 +285,9 @@ namespace ScriptUtil
                 //Estas tablas son las que necesitamos agregarle el item set identity para poder insertar su pk correctamente.
                 sbConsultas.AppendLine("select so.name from sys.identity_columns ic inner join sysobjects so on so.id = ic.object_id where is_identity = 1 and so.TYPE = 'U' and so.NAME != 'dtproperties' ");
                 sbConsultas.AppendLine();
+                //Necesita hacer un left join para verificar las que no tienen relaciones con las que si.
+                sbConsultas.AppendLine("select so.name as nombre, count(*) relaciones FROM SYSOBJECTS so left join sysforeignkeys sfk on sfk.rkeyid = so.id WHERE TYPE = 'U' AND NAME != 'dtproperties' and so.name in ( " + sbTablasFilter.ToString() + " )  group by so.name order by relaciones desc");
+                sbConsultas.AppendLine();
 
                 connection.ConnectionString = this.DbConectionString;
                 cmd.CommandType = CommandType.Text;
@@ -287,18 +299,136 @@ namespace ScriptUtil
 
                 _dsTablesInfo.Tables[0].TableName = "tablanombres";
                 _dsTablesInfo.Tables[1].TableName = "tablacolumna";
-                _dsTablesInfo.Tables[2].TableName = "tablarelaciones";
+                _dsTablesInfo.Tables[2].TableName = "tablarelaciones1";
                 _dsTablesInfo.Tables[3].TableName = "tablarelacionunivoca";
                 _dsTablesInfo.Tables[4].TableName = "tablasetidentity";
+                _dsTablesInfo.Tables[5].TableName = "tablarelaciones2";
             }
-            catch (SqlException sqlex)
+            catch (SqlException sex) 
             {
-                throw sqlex;
+                throw sex;
             }
             catch (Exception ex)
             {
                 throw ex;
             }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+            return _dsTablesInfo;
+        }
+
+        public DataSet GetTableInfo(string ActiveTable) 
+        {
+            SqlConnection connection = new SqlConnection();
+            SqlCommand cmd = new SqlCommand();
+            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            StringBuilder sbConsultas = new StringBuilder();
+            StringBuilder sbTablasFilter = new StringBuilder();
+            DataSet dsTablesInfo = new DataSet();
+            try
+            {
+                //Consulta de Tablas 
+                sbConsultas.AppendLine("SELECT so.id, so.name, count(*) relaciones FROM SYSOBJECTS so left join sysforeignkeys sfk 	on sfk.rkeyid = so.id WHERE TYPE = 'U' AND NAME != 'dtproperties' and so.name in ( '" + ActiveTable + "' )  group by so.id , so.name order by relaciones desc ");
+                sbConsultas.AppendLine();
+                //Consulta de Columnas
+                sbConsultas.AppendLine("select so.id, sc.name nombrecolumna, st.name tipo,st.length tamanodato from syscolumns sc inner join systypes st on st.xtype = sc.xtype inner join SYSOBJECTS so on sc.id = so.id WHERE so.TYPE = 'U' and sc.name not in ( select ic.name from sys.identity_columns ic inner join sysobjects so on so.id = ic.object_id where is_identity = 1 and so.TYPE = 'U' and so.NAME != 'dtproperties' and IDENT_INCR(OBJECT_NAME(id)) > 0 ) and so.NAME != 'dtproperties' and so.name in ( '" + ActiveTable + "' )  order by so.id ");
+                sbConsultas.AppendLine();
+                //consulta de tablas con mayores relaciones
+                sbConsultas.AppendLine("select sfk.rkeyid as id,so.name, count(*) relaciones from sysforeignkeys sfk inner join sysobjects so on so.id = sfk.rkeyid group by sfk.rkeyid, so.name having count(*) > 1 order by relaciones desc  ");
+                sbConsultas.AppendLine();
+                //Consulta de tablas relacionadas consigo mismas, para obtener un ordenamiento por su PrimaryKey y que no de error de insercion.
+                sbConsultas.AppendLine("SELECT OBJECT_NAME(f.parent_object_id) AS TableName, COL_NAME(fc.parent_object_id, fc.parent_column_id) AS ColumnName, OBJECT_NAME (f.referenced_object_id) AS ReferenceTableName, COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS ReferenceColumnName FROM sys.foreign_keys AS f INNER JOIN sys.foreign_key_columns AS fc ON f.OBJECT_ID = fc.constraint_object_id where f.parent_object_id in (select fkeyid from sysforeignkeys sfk where fkeyid = rkeyid) and OBJECT_NAME(f.parent_object_id) in ( '" + ActiveTable + "' ) ");
+                sbConsultas.AppendLine();
+                //Estas tablas son las que necesitamos agregarle el item set identity para poder insertar su pk correctamente.
+                sbConsultas.AppendLine("select so.name from sys.identity_columns ic inner join sysobjects so on so.id = ic.object_id where is_identity = 1 and so.TYPE = 'U' and so.NAME not in ('dtproperties','sysdiagrams') ");
+                sbConsultas.AppendLine();
+
+                connection.ConnectionString = this.DbConectionString;
+                cmd.CommandType = CommandType.Text;
+                cmd.Connection = connection;
+                da.SelectCommand = cmd;
+                cmd.CommandText = sbConsultas.ToString();
+                connection.Open();
+                da.Fill(dsTablesInfo);
+
+                dsTablesInfo.Tables[0].TableName = "tablanombres";
+                dsTablesInfo.Tables[1].TableName = "tablacolumna";
+                dsTablesInfo.Tables[2].TableName = "tablarelaciones1";
+                dsTablesInfo.Tables[3].TableName = "tablarelacionunivoca";
+                dsTablesInfo.Tables[4].TableName = "tablasetidentity";
+            }
+            catch (SqlException sex)
+            {
+                throw sex;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+            return dsTablesInfo;
+        }
+
+        public DataTable GetAllData(string ActiveTable, String Schema, int PageSecuence, int PageLen, string ColumnaId) 
+        {
+            DataTable dt = new DataTable();
+            SqlConnection connection = new SqlConnection();
+            SqlCommand cmd = new SqlCommand();
+            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            StringBuilder sbConsultaIni = new StringBuilder();
+            try
+            {
+                sbConsultaIni.AppendLine("SELECT * FROM ( ");
+                sbConsultaIni.AppendLine("SELECT *, ROW_NUMBER() Over(Order By ");
+                sbConsultaIni.Append(ColumnaId);
+                sbConsultaIni.Append(" desc ");
+                sbConsultaIni.Append(") As RowNum ");
+                sbConsultaIni.AppendLine("FROM ");
+                sbConsultaIni.Append(ActiveTable);
+                sbConsultaIni.AppendLine(") AS TABLEROWNUMBER ");
+                sbConsultaIni.AppendLine("WHERE RowNum BETWEEN ( ");
+                sbConsultaIni.Append(PageSecuence.ToString());
+                sbConsultaIni.Append(" - 1 ) * ");
+                sbConsultaIni.Append(PageLen.ToString()); 
+                sbConsultaIni.Append("+ 1 AND ");
+                sbConsultaIni.Append(PageSecuence.ToString());
+                sbConsultaIni.Append(" * ");
+                sbConsultaIni.Append(PageLen.ToString()); 
+                connection.ConnectionString = this.DbConectionString;
+                cmd.CommandType = CommandType.Text;
+                cmd.Connection = connection;
+                da.SelectCommand = cmd;
+                cmd.CommandText = sbConsultaIni.ToString();
+                connection.Open();
+                da.Fill(dt);
+            }
+            catch (SqlException sse)
+            {
+                throw sse;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+            return dt;
         }
 
         #endregion
@@ -421,332 +551,302 @@ namespace ScriptUtil
 
         #region Method Export
 
-        private string CommonCreateQueries(List<string> SelectTables)
+        private string CommonCreateQueries(string ActiveTable, string Schema, TipoMotor MotorBaseDeDatos, DataTable dtActiveTable,DataSet dsTablesInfo)
         {
-            string sActiveTable = string.Empty;
             string sActiveIdTable = string.Empty;
             StringBuilder sbConsulta = new StringBuilder();
-            string Schema = string.Empty;
+            StringBuilder sbColumns = new StringBuilder();
+            StringBuilder sbConsultaIni = new StringBuilder();
+            bool NeedIdentity = false;
             try
             {
-                GetAllData(SelectTables);
-                
-                if (_Schema.Length != 0)
+                if (Schema.Length != 0)
                 {
-                    Schema = "[" + _Schema + "].";
+                    Schema = "[" + Schema + "].";
                 }
 
-                foreach (DataRow drTablaActiva in _dsTablesInfo.Tables["tablanombres"].Rows)
+                if (dsTablesInfo.Tables["tablasetidentity"].Select("name = '" + ActiveTable + "'").Length == 1 && (MotorBaseDeDatos == TipoMotor.SqlServer2000 || MotorBaseDeDatos == TipoMotor.SqlServer2005))
                 {
-                    sActiveTable = drTablaActiva["name"].ToString();
-                    sActiveIdTable = drTablaActiva["id"].ToString();
-                    StringBuilder sbColumns = new StringBuilder();
-                    DataRow[] drColumns = _dsTablesInfo.Tables["tablacolumna"].Select("id = " + sActiveIdTable);
-                    StringBuilder sbConsultaIni = new StringBuilder();
+                    NeedIdentity = true;
+                }
 
-                    sbConsulta.AppendLine();
-                    sbConsulta.AppendLine();
-                    sbConsulta.AppendLine();
-                    sbConsulta.Append("---************************************** ");
-                    sbConsulta.Append(sActiveTable);
-                    sbConsulta.Append("***********************************");
-                    sbConsulta.AppendLine();
-                    sbConsulta.AppendLine();
-                    sbConsulta.AppendLine();
-                    sbConsulta.AppendLine();
-                    sbConsulta.AppendLine();
+                sbConsulta.AppendLine();
+                sbConsulta.AppendLine();
+                sbConsulta.AppendLine();
+                sbConsulta.Append("---************************************** ");
+                sbConsulta.Append(ActiveTable);
+                sbConsulta.Append("***********************************");
+                sbConsulta.AppendLine();
+                sbConsulta.AppendLine();
+                sbConsulta.AppendLine();
+                sbConsulta.AppendLine();
+                sbConsulta.AppendLine();
 
-                    if (_dsTablesInfo.Tables["tablasetidentity"].Select("name = '" + sActiveTable + "'").Length == 1  && _MotorBaseDeDatos == TipoMotor.SqlServer ) 
+                if (MotorBaseDeDatos == TipoMotor.SqlServer2000 || MotorBaseDeDatos == TipoMotor.SqlServer2005)
+                {
+                    sbConsulta.AppendLine("SET QUOTED_IDENTIFIER ON ");
+                    sbConsulta.AppendLine("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE ");
+                    sbConsulta.AppendLine("SET ARITHABORT ON ");
+                    sbConsulta.AppendLine("SET NUMERIC_ROUNDABORT OFF ");
+                    sbConsulta.AppendLine("SET CONCAT_NULL_YIELDS_NULL ON ");
+                    sbConsulta.AppendLine("SET ANSI_NULLS ON ");
+                    sbConsulta.AppendLine("SET ANSI_PADDING ON ");
+                    sbConsulta.AppendLine("SET ANSI_WARNINGS ON ");
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine("GO ");
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine();
+                    sbConsulta.Append("BEGIN TRANSACTION ");
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine();
+                }
+
+
+                if (MotorBaseDeDatos == TipoMotor.Oracle) 
+                {
+                    sbConsulta.AppendLine("SET SERVEROUTPUT ON");
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine();
+                    sbConsulta.Append("BEGIN ");
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine();
+                }
+
+                if (NeedIdentity)
+                {
+                    sbConsulta.AppendLine();
+                    sbConsulta.Append("SET IDENTITY_INSERT ");
+                    sbConsulta.Append(Schema);
+                    sbConsulta.Append(ActiveTable);
+                    sbConsulta.Append(" ON");
+                }
+
+                sbConsulta.AppendLine();
+
+                int iFinalColumna = 0;
+                foreach (DataRow drColumn in dsTablesInfo.Tables["tablacolumna"].Rows)
+                {
+                    sbColumns.Append(drColumn["nombrecolumna"].ToString());
+
+                    if ((dsTablesInfo.Tables["tablacolumna"].Rows.Count - 1) != iFinalColumna)
                     {
-                        sbConsulta.AppendLine();
-                        sbConsulta.Append("SET IDENTITY_INSERT ");
-                        sbConsulta.Append(Schema);
-                        sbConsulta.Append(sActiveTable);
-                        sbConsulta.Append(" ON");
+                        sbColumns.Append(",");
                     }
+                    iFinalColumna++;
+                }
 
-                    sbConsulta.AppendLine();
-
-                    int iFinalColumna = 0;
-                    foreach (DataRow drColumn in drColumns)
+                sbConsultaIni.Append("INSERT INTO ");
+                sbConsultaIni.Append(Schema);
+                sbConsultaIni.Append("");
+                sbConsultaIni.Append(ActiveTable);
+                sbConsultaIni.Append("");
+                sbConsultaIni.Append(" ( ");
+                sbConsultaIni.Append(sbColumns.ToString());
+                sbConsultaIni.Append(" ) VALUES ( ");
+                
+                foreach (DataRow drdato in dtActiveTable.Rows)
+                {
+                    iFinalColumna = 0;
+                    StringBuilder sbValores = new StringBuilder();
+                    foreach (DataRow drColumn in dsTablesInfo.Tables["tablacolumna"].Rows)
                     {
-                        sbColumns.Append(drColumn["nombrecolumna"].ToString());
+                        string stipo = drColumn["tipo"].ToString();
+                        string scolumna = drColumn["nombrecolumna"].ToString();
 
-                        if ((drColumns.Length - 1) != iFinalColumna)
+                        switch (stipo)
                         {
-                            sbColumns.Append(",");
-                        }
-                        iFinalColumna++;
-                    }
-
-                    sbConsultaIni.Append("INSERT INTO ");
-
-                    sbConsultaIni.Append(Schema);
-
-                    sbConsultaIni.Append("");
-                    sbConsultaIni.Append(sActiveTable);
-                    sbConsultaIni.Append("");
-                    sbConsultaIni.Append(" ( ");
-                    sbConsultaIni.Append(sbColumns.ToString());
-                    sbConsultaIni.Append(" ) VALUES ( ");
-
-                    foreach (DataRow drdato in _dsAllData.Tables[sActiveTable].Rows)
-                    {
-                        iFinalColumna = 0;
-                        StringBuilder sbValores = new StringBuilder();
-                        foreach (DataRow drColumn in drColumns)
-                        {
-                            string stipo = drColumn["tipo"].ToString();
-                            string scolumna = drColumn["nombrecolumna"].ToString();
-
-                            switch (stipo)
-                            {
-                                case "char":
-                                case "text":
-                                case "varchar":
-                                case "nchar":
-                                case "nvarchar":
+                            case "char":
+                            case "text":
+                            case "varchar":
+                            case "nchar":
+                            case "nvarchar":
+                                sbValores.Append("'");
+                                sbValores.Append(drdato[scolumna].ToString().Trim());
+                                sbValores.Append("'");
+                                break;
+                            case "tinyint":
+                            case "int":
+                            case "smallint":
+                            case "bigint":
+                                sbValores.Append(ConvertSQL_Int(drdato[scolumna].ToString().Trim()));
+                                break;
+                            case "numeric":
+                            case "decimal":
+                            case "money":
+                            case "smallmoney":
+                            case "real":
+                            case "float":
+                                sbValores.Append(ConvertSQL_Decimal(drdato[scolumna].ToString().Trim()));
+                                break;
+                            case "bit":
+                                if (MotorBaseDeDatos == TipoMotor.SqlServer2000 || MotorBaseDeDatos == TipoMotor.SqlServer2005)
+                                {
+                                    sbValores.Append(ConvertSQL_Boolean(drdato[scolumna].ToString().Trim()));
+                                }
+                                if (MotorBaseDeDatos == TipoMotor.Oracle)
+                                {
+                                    sbValores.Append(ConvertORACLE_Boolean(drdato[scolumna].ToString().Trim()));
+                                }
+                                if (MotorBaseDeDatos == TipoMotor.SoloInsert)
+                                {
                                     sbValores.Append("'");
                                     sbValores.Append(drdato[scolumna].ToString().Trim());
                                     sbValores.Append("'");
-                                    break;
-                                case "tinyint":
-                                case "int":
-                                case "smallint":
-                                case "bigint":
-                                    sbValores.Append(ConvertSQL_Int(drdato[scolumna].ToString().Trim()));
-                                    break;
-                                case "numeric":
-                                case "decimal":
-                                case "money":
-                                case "smallmoney":
-                                case "real":
-                                case "float":
-                                    sbValores.Append(ConvertSQL_Decimal(drdato[scolumna].ToString().Trim()));
-                                    break;
-                                case "bit":
-                                    if (_MotorBaseDeDatos == TipoMotor.SqlServer)
-                                    {
-                                        sbValores.Append(ConvertSQL_Boolean(drdato[scolumna].ToString().Trim()));
-                                    }
-                                    if (_MotorBaseDeDatos == TipoMotor.Oracle) 
-                                    {
-                                        sbValores.Append(ConvertORACLE_Boolean(drdato[scolumna].ToString().Trim()));
-                                    }
-                                    if (_MotorBaseDeDatos == TipoMotor.SoloInsert)
-                                    {
-                                        sbValores.Append("'");
-                                        sbValores.Append(drdato[scolumna].ToString().Trim());
-                                        sbValores.Append("'");
-                                    }
-                                    break;
-                                case "datetime":
-                                case "date":
-                                case "time":
-                                case "smalldatetime":
-                                    if (_MotorBaseDeDatos == TipoMotor.Oracle)
-                                    {
-                                        sbValores.Append(ConvertORACLE_Datetime(drdato[scolumna].ToString().Trim()));
-                                    }
-                                    if (_MotorBaseDeDatos == TipoMotor.SqlServer) 
-                                    {
-                                        sbValores.Append(ConvertSQL_Datetime(drdato[scolumna].ToString().Trim()));
-                                    }
-                                    if (_MotorBaseDeDatos == TipoMotor.SoloInsert) 
-                                    {
-                                        sbValores.Append("'");
-                                        sbValores.Append(drdato[scolumna].ToString().Trim());
-                                        sbValores.Append("'");
-                                    }
-                                    break;
-                                default:
-                                    sbValores.Append("null");
-                                    break;
-                            }
-
-                            if ((drColumns.Length - 1) != iFinalColumna)
-                            {
-                                sbValores.Append(",");
-                            }
-                            iFinalColumna++;
+                                }
+                                break;
+                            case "datetime":
+                            case "date":
+                            case "time":
+                            case "smalldatetime":
+                                if (MotorBaseDeDatos == TipoMotor.Oracle)
+                                {
+                                    sbValores.Append(ConvertORACLE_Datetime(drdato[scolumna].ToString().Trim()));
+                                }
+                                if (MotorBaseDeDatos == TipoMotor.SqlServer2000 || MotorBaseDeDatos == TipoMotor.SqlServer2005)
+                                {
+                                    sbValores.Append(ConvertSQL_Datetime(drdato[scolumna].ToString().Trim()));
+                                }
+                                if (MotorBaseDeDatos == TipoMotor.SoloInsert)
+                                {
+                                    sbValores.Append("'");
+                                    sbValores.Append(drdato[scolumna].ToString().Trim());
+                                    sbValores.Append("'");
+                                }
+                                break;
+                            default:
+                                sbValores.Append("null");
+                                break;
                         }
-                        sbValores.Append(")");
-                        sbConsulta.AppendLine();
-                        sbConsulta.Append(sbConsultaIni.ToString());
-                        sbConsulta.Append(sbValores.ToString());
-                    }
 
-                    if (_dsTablesInfo.Tables["tablasetidentity"].Select("name = '" + sActiveTable + "'").Length == 1 && _MotorBaseDeDatos == TipoMotor.SqlServer)
-                    {
-                        sbConsulta.AppendLine();
-                        sbConsulta.AppendLine();
-                        sbConsulta.AppendLine();
-                        sbConsulta.Append("SET IDENTITY_INSERT ");
-                        sbConsulta.Append(Schema);
-                        sbConsulta.Append(sActiveTable);
-                        sbConsulta.Append(" OFF");
+                        if ((dtActiveTable.Rows.Count - 1) != iFinalColumna)
+                        {
+                            sbValores.Append(",");
+                        }
+                        iFinalColumna++;
                     }
+                    sbValores.Append(")");
+
+                    sbConsulta.AppendLine();
+                    sbConsulta.Append(sbConsultaIni.ToString());
+                    sbConsulta.Append(sbValores.ToString());
+                }
+
+                if (NeedIdentity)
+                {
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine();
+                    sbConsulta.Append("SET IDENTITY_INSERT ");
+                    sbConsulta.Append(Schema);
+                    sbConsulta.Append(ActiveTable);
+                    sbConsulta.Append(" OFF");
+                }
+                
+                if (MotorBaseDeDatos == TipoMotor.SqlServer2000 || MotorBaseDeDatos == TipoMotor.SqlServer2005)
+                {
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine("COMMIT TRANSACTION  ");
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine("--**************************  Fin de Query - Generated by SqlToScript ********************************** ");
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine();
+                }
+
+                if (MotorBaseDeDatos == TipoMotor.Oracle)
+                {
+                    sbConsulta.AppendLine("--**************************  Fin Transaccion ********************************** ");
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine("COMMIT;");
+                    sbConsulta.AppendLine("EXCEPTION WHEN OTHERS THEN ");
+                    sbConsulta.AppendLine("dbms_output.put_line( SQLCODE || '   ********    ' || SQLERRM ); ");
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine("dbms_output.put_line('*************************************************************************' ); ");
+                    sbConsulta.AppendLine("dbms_output.put_line('OCURRIO UN ERROR EN EL PROCESAMIENTO DE LOS DATOS, NO SE HA INSERTADO NADA'); ");
+                    sbConsulta.AppendLine("dbms_output.put_line('*************************************************************************'); ");
+                    sbConsulta.AppendLine("ROLLBACK;");
+                    sbConsulta.AppendLine("END;");
+                    sbConsulta.AppendLine("--**************************  Fin de Query - Generated by SqlToScript ********************************** ");
+                    sbConsulta.AppendLine();
+                    sbConsulta.AppendLine();
+                }
+
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            return sbConsulta.ToString();
+        }
+
+        public void SaveOutputScript(List<string> SelectTables, TipoMotor tipoMotor ,string PathScript, string Schema, int RowPerPage )
+        {
+            DataSet dsTablesInfo = new DataSet();
+            DataTable dt = new DataTable();
+            string s = string.Empty;
+            string OrdenamientoColumna = string.Empty;
+            try
+            {
+                foreach (string t in SelectTables)
+                {
+                    int i = 1;
+                    dsTablesInfo = GetTableInfo(t);
+                    OrdenamientoColumna = dsTablesInfo.Tables["tablacolumna"].Rows[0]["nombrecolumna"].ToString();
+                    do
+                    {
+                        dt = GetAllData(t, Schema, i, RowPerPage , OrdenamientoColumna);
+                        s = CommonCreateQueries(t, Schema, tipoMotor, dt, dsTablesInfo);
+                        StringBuilder sbFile = new StringBuilder();
+                        sbFile.Append(PathScript);
+                        sbFile.Append("_");
+                        sbFile.Append(t.ToString());
+                        sbFile.Append("_");
+                        sbFile.Append(i.ToString());
+                        sbFile.Append(".sql");
+                        File.AppendAllText(sbFile.ToString(), s, Encoding.UTF8);
+                    }
+                    while (dt.Rows.Count != 0);
+
+                    System.Threading.Thread.Sleep(1000);
+                    i++;
                 }
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 throw ex;
             }
-            return sbConsulta.ToString();
-        }
-
-        public string SaveOutputScript_SQL2000(List<string> SelectTables)
-        {
-            StringBuilder sbConsulta = new StringBuilder();
-            StringBuilder sbSChema = new StringBuilder();
-            try
-            {
-                sbConsulta.AppendLine("SET QUOTED_IDENTIFIER ON ");
-                sbConsulta.AppendLine("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE ");
-                sbConsulta.AppendLine("SET ARITHABORT ON ");
-                sbConsulta.AppendLine("SET NUMERIC_ROUNDABORT OFF ");
-                sbConsulta.AppendLine("SET CONCAT_NULL_YIELDS_NULL ON ");
-                sbConsulta.AppendLine("SET ANSI_NULLS ON ");
-                sbConsulta.AppendLine("SET ANSI_PADDING ON ");
-                sbConsulta.AppendLine("SET ANSI_WARNINGS ON ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine("GO ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                sbConsulta.Append("BEGIN TRANSACTION ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                _MotorBaseDeDatos = TipoMotor.SqlServer;
-
-                GetTablesInfo(SelectTables);
-  
-                sbConsulta.Append(CommonCreateQueries(SelectTables));
-
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine("COMMIT TRANSACTION  ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine("--**************************  Fin de Query - Generated by SqlToScript ********************************** ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-            return sbConsulta.ToString();
-        }
-
-        public string SaveOutputScript_SQL2005(List<string> SelectTables)
-        {
-            DataSet dsAllData = new DataSet();
-            DataSet dsTablesInfo = new DataSet();
-            string sActiveTable = string.Empty;
-            StringBuilder sbConsulta = new StringBuilder();
-            StringBuilder sbSChema = new StringBuilder();
-            try
-            {
-                sbConsulta.AppendLine("SET QUOTED_IDENTIFIER ON ");
-                sbConsulta.AppendLine("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE ");
-                sbConsulta.AppendLine("SET ARITHABORT ON ");
-                sbConsulta.AppendLine("SET NUMERIC_ROUNDABORT OFF ");
-                sbConsulta.AppendLine("SET CONCAT_NULL_YIELDS_NULL ON ");
-                sbConsulta.AppendLine("SET ANSI_NULLS ON ");
-                sbConsulta.AppendLine("SET ANSI_PADDING ON ");
-                sbConsulta.AppendLine("SET ANSI_WARNINGS ON ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine("GO ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine("BEGIN TRANSACTION ");
-                sbConsulta.AppendLine("BEGIN TRY");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                
-                _MotorBaseDeDatos = TipoMotor.SqlServer;
-                GetTablesInfo(SelectTables);
-   
-                sbConsulta.Append(CommonCreateQueries(SelectTables));
-
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine("--**************************  Fin Transaccion ********************************** ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine("COMMIT TRANSACTION ");
-                sbConsulta.AppendLine("PRINT '*************************************************************************' ");
-                sbConsulta.AppendLine("PRINT 'Datos insertados Correctamente' ");
-                sbConsulta.AppendLine("PRINT '*************************************************************************' ");
-                sbConsulta.AppendLine("END TRY");
-                sbConsulta.AppendLine("BEGIN CATCH");
-                sbConsulta.AppendLine("PRINT '*************************************************************************' ");
-                sbConsulta.AppendLine("PRINT 'OCURRIO UN ERROR EN EL PROCESAMIENTO DE LOS DATOS, NO SE HA INSERTADO NADA' ");
-                sbConsulta.AppendLine("PRINT '*************************************************************************' ");
-                sbConsulta.AppendLine("ROLLBACK TRANSACTION  ");
-                sbConsulta.AppendLine("END CATCH");
-                sbConsulta.AppendLine("--**************************  Fin de Query - Generated by SqlToScript ********************************** ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Verifique el Schema" + ex.Message);
-            }
-            return sbConsulta.ToString();
-        }
-
-        public string SaveOutputScript_Oracle(List<string> SelectTables)
-        {
-            DataSet dsAllData = new DataSet();
-            DataSet dsTablesInfo = new DataSet();
-            string sTablaActiva = string.Empty;
-            StringBuilder sbConsulta = new StringBuilder();
-            StringBuilder sbMensajeFinal = new StringBuilder();
-            try
-            {
-                sbConsulta.AppendLine("SET SERVEROUTPUT ON");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                sbConsulta.Append("BEGIN ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-
-                _MotorBaseDeDatos = TipoMotor.Oracle;
-                GetTablesInfo(SelectTables);
-
-                sbConsulta.Append(CommonCreateQueries(SelectTables));
-
-                sbConsulta.AppendLine("--**************************  Fin Transaccion ********************************** ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-                sbConsulta.Append(sbMensajeFinal.ToString());
-                sbConsulta.AppendLine("COMMIT;");
-                sbConsulta.AppendLine("EXCEPTION WHEN OTHERS THEN ");
-                sbConsulta.AppendLine("dbms_output.put_line( SQLCODE || '   ********    ' || SQLERRM ); ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine("dbms_output.put_line('*************************************************************************' ); ");
-                sbConsulta.AppendLine("dbms_output.put_line('OCURRIO UN ERROR EN EL PROCESAMIENTO DE LOS DATOS, NO SE HA INSERTADO NADA'); ");
-                sbConsulta.AppendLine("dbms_output.put_line('*************************************************************************'); ");
-                sbConsulta.AppendLine("ROLLBACK;");
-                sbConsulta.AppendLine("END;");
-                sbConsulta.AppendLine("--**************************  Fin de Query - Generated by SqlToScript ********************************** ");
-                sbConsulta.AppendLine();
-                sbConsulta.AppendLine();
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-            return sbConsulta.ToString();
         }
 
         #endregion
 
+        #region Entities
 
-      
+        public class TableInfo 
+        {
+            public string Id { get; set; }
+            public string TableName { get; set; }
+            public bool Relacion { get; set; }
+            public string TableLen { get; set; }
+        }
+
+        public class ParameterExport
+        {
+            public List<string> lTables { get; set; }
+            public TipoMotor TipoMotorExport { get; set; }
+            public LenguajePuntoComa PuntoComa { get; set; }
+            public string PathInicial { get; set; }
+            public string Schema { get; set; }
+            public string Base { get; set; }
+            public string Server { get; set; }
+            public string UserBase { get; set; }
+            public string PassBase { get; set; }
+            public bool IntegratedSecurity { get; set; }
+            public int RowPerPage { get; set; }
+        }
+
+
+        #endregion
+
 
     }
 }

@@ -35,6 +35,8 @@
             this.btnCancel = new System.Windows.Forms.Button();
             this.btnExport = new System.Windows.Forms.Button();
             this.gConection = new System.Windows.Forms.GroupBox();
+            this.txtCantidadRegistrosPorArchivo = new System.Windows.Forms.TextBox();
+            this.label8 = new System.Windows.Forms.Label();
             this.opComa = new System.Windows.Forms.RadioButton();
             this.opPunto = new System.Windows.Forms.RadioButton();
             this.label7 = new System.Windows.Forms.Label();
@@ -55,11 +57,15 @@
             this.label1 = new System.Windows.Forms.Label();
             this.lblCargando = new System.Windows.Forms.Label();
             this.WorkerSql = new System.ComponentModel.BackgroundWorker();
+            this.btnSeleccionarTodos = new System.Windows.Forms.Button();
             this.gvTablesSQL = new AleMillanControlsWin.cDataGridView();
             this.chkSel = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.Id = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.nombre = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.btnSeleccionarTodos = new System.Windows.Forms.Button();
+            this.TableName = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Relacion = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.TableLen = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.txtTotalRegistros = new System.Windows.Forms.TextBox();
+            this.label9 = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             this.gConection.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.gvTablesSQL)).BeginInit();
@@ -70,9 +76,9 @@
             this.groupBox1.Controls.Add(this.opSQL2005);
             this.groupBox1.Controls.Add(this.opSQL2000);
             this.groupBox1.Controls.Add(this.opOracle);
-            this.groupBox1.Location = new System.Drawing.Point(352, 160);
+            this.groupBox1.Location = new System.Drawing.Point(508, 160);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(523, 62);
+            this.groupBox1.Size = new System.Drawing.Size(367, 62);
             this.groupBox1.TabIndex = 11;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Export";
@@ -80,17 +86,19 @@
             // opSQL2005
             // 
             this.opSQL2005.AutoSize = true;
-            this.opSQL2005.Location = new System.Drawing.Point(365, 30);
+            this.opSQL2005.Checked = true;
+            this.opSQL2005.Location = new System.Drawing.Point(235, 31);
             this.opSQL2005.Name = "opSQL2005";
             this.opSQL2005.Size = new System.Drawing.Size(118, 17);
             this.opSQL2005.TabIndex = 2;
+            this.opSQL2005.TabStop = true;
             this.opSQL2005.Text = "Export to SQL 2005";
             this.opSQL2005.UseVisualStyleBackColor = true;
             // 
             // opSQL2000
             // 
             this.opSQL2000.AutoSize = true;
-            this.opSQL2000.Location = new System.Drawing.Point(197, 30);
+            this.opSQL2000.Location = new System.Drawing.Point(114, 29);
             this.opSQL2000.Name = "opSQL2000";
             this.opSQL2000.Size = new System.Drawing.Size(115, 17);
             this.opSQL2000.TabIndex = 1;
@@ -100,12 +108,10 @@
             // opOracle
             // 
             this.opOracle.AutoSize = true;
-            this.opOracle.Checked = true;
-            this.opOracle.Location = new System.Drawing.Point(22, 30);
+            this.opOracle.Location = new System.Drawing.Point(6, 28);
             this.opOracle.Name = "opOracle";
             this.opOracle.Size = new System.Drawing.Size(101, 17);
             this.opOracle.TabIndex = 0;
-            this.opOracle.TabStop = true;
             this.opOracle.Text = "Export to Oracle";
             this.opOracle.UseVisualStyleBackColor = true;
             // 
@@ -132,6 +138,10 @@
             // 
             // gConection
             // 
+            this.gConection.Controls.Add(this.label9);
+            this.gConection.Controls.Add(this.txtTotalRegistros);
+            this.gConection.Controls.Add(this.txtCantidadRegistrosPorArchivo);
+            this.gConection.Controls.Add(this.label8);
             this.gConection.Controls.Add(this.opComa);
             this.gConection.Controls.Add(this.opPunto);
             this.gConection.Controls.Add(this.label7);
@@ -152,15 +162,33 @@
             this.gConection.Controls.Add(this.label1);
             this.gConection.Location = new System.Drawing.Point(3, 3);
             this.gConection.Name = "gConection";
-            this.gConection.Size = new System.Drawing.Size(340, 274);
+            this.gConection.Size = new System.Drawing.Size(499, 274);
             this.gConection.TabIndex = 7;
             this.gConection.TabStop = false;
             this.gConection.Text = "Conection";
             // 
+            // txtCantidadRegistrosPorArchivo
+            // 
+            this.txtCantidadRegistrosPorArchivo.Location = new System.Drawing.Point(178, 145);
+            this.txtCantidadRegistrosPorArchivo.MaxLength = 9;
+            this.txtCantidadRegistrosPorArchivo.Name = "txtCantidadRegistrosPorArchivo";
+            this.txtCantidadRegistrosPorArchivo.Size = new System.Drawing.Size(144, 20);
+            this.txtCantidadRegistrosPorArchivo.TabIndex = 18;
+            this.txtCantidadRegistrosPorArchivo.Text = "50000";
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Location = new System.Drawing.Point(14, 148);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(161, 13);
+            this.label8.TabIndex = 17;
+            this.label8.Text = "Registros por Archivo Registros :";
+            // 
             // opComa
             // 
             this.opComa.AutoSize = true;
-            this.opComa.Location = new System.Drawing.Point(199, 149);
+            this.opComa.Location = new System.Drawing.Point(235, 194);
             this.opComa.Name = "opComa";
             this.opComa.Size = new System.Drawing.Size(52, 17);
             this.opComa.TabIndex = 16;
@@ -171,7 +199,7 @@
             // 
             this.opPunto.AutoSize = true;
             this.opPunto.Checked = true;
-            this.opPunto.Location = new System.Drawing.Point(140, 149);
+            this.opPunto.Location = new System.Drawing.Point(176, 194);
             this.opPunto.Name = "opPunto";
             this.opPunto.Size = new System.Drawing.Size(53, 17);
             this.opPunto.TabIndex = 12;
@@ -182,7 +210,7 @@
             // label7
             // 
             this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(6, 151);
+            this.label7.Location = new System.Drawing.Point(42, 196);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(129, 13);
             this.label7.TabIndex = 15;
@@ -190,7 +218,7 @@
             // 
             // btnPathScript
             // 
-            this.btnPathScript.Location = new System.Drawing.Point(264, 177);
+            this.btnPathScript.Location = new System.Drawing.Point(283, 217);
             this.btnPathScript.Name = "btnPathScript";
             this.btnPathScript.Size = new System.Drawing.Size(43, 21);
             this.btnPathScript.TabIndex = 14;
@@ -200,7 +228,7 @@
             // 
             // txtPathScript
             // 
-            this.txtPathScript.Location = new System.Drawing.Point(93, 178);
+            this.txtPathScript.Location = new System.Drawing.Point(112, 218);
             this.txtPathScript.Name = "txtPathScript";
             this.txtPathScript.ReadOnly = true;
             this.txtPathScript.Size = new System.Drawing.Size(164, 20);
@@ -209,7 +237,7 @@
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(5, 181);
+            this.label6.Location = new System.Drawing.Point(24, 221);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(85, 13);
             this.label6.TabIndex = 12;
@@ -218,7 +246,7 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(32, 126);
+            this.label5.Location = new System.Drawing.Point(123, 126);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(52, 13);
             this.label5.TabIndex = 8;
@@ -226,23 +254,23 @@
             // 
             // txtSchema
             // 
-            this.txtSchema.Location = new System.Drawing.Point(88, 123);
+            this.txtSchema.Location = new System.Drawing.Point(179, 121);
             this.txtSchema.Name = "txtSchema";
             this.txtSchema.Size = new System.Drawing.Size(185, 20);
             this.txtSchema.TabIndex = 4;
             // 
             // txtServer
             // 
-            this.txtServer.Location = new System.Drawing.Point(88, 97);
+            this.txtServer.Location = new System.Drawing.Point(179, 97);
             this.txtServer.Name = "txtServer";
             this.txtServer.Size = new System.Drawing.Size(185, 20);
             this.txtServer.TabIndex = 3;
-            this.txtServer.Text = ".\\sqlexpress";
+            this.txtServer.Text = "SIRCODE\\SIRCODE";
             // 
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(38, 100);
+            this.label4.Location = new System.Drawing.Point(129, 100);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(44, 13);
             this.label4.TabIndex = 6;
@@ -253,7 +281,7 @@
             this.chkIntegratedSecurity.AutoSize = true;
             this.chkIntegratedSecurity.CheckAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.chkIntegratedSecurity.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
-            this.chkIntegratedSecurity.Location = new System.Drawing.Point(140, 216);
+            this.chkIntegratedSecurity.Location = new System.Drawing.Point(159, 244);
             this.chkIntegratedSecurity.Name = "chkIntegratedSecurity";
             this.chkIntegratedSecurity.Size = new System.Drawing.Size(113, 17);
             this.chkIntegratedSecurity.TabIndex = 5;
@@ -263,29 +291,31 @@
             // 
             // txtBase
             // 
-            this.txtBase.Location = new System.Drawing.Point(88, 71);
+            this.txtBase.Location = new System.Drawing.Point(179, 71);
             this.txtBase.Name = "txtBase";
             this.txtBase.Size = new System.Drawing.Size(185, 20);
             this.txtBase.TabIndex = 2;
-            this.txtBase.Text = "prueba";
+            this.txtBase.Text = "Quini6";
             // 
             // txtPassword
             // 
-            this.txtPassword.Location = new System.Drawing.Point(88, 45);
+            this.txtPassword.Location = new System.Drawing.Point(179, 45);
             this.txtPassword.Name = "txtPassword";
             this.txtPassword.Size = new System.Drawing.Size(185, 20);
             this.txtPassword.TabIndex = 1;
+            this.txtPassword.Text = "2223";
             // 
             // txtUser
             // 
-            this.txtUser.Location = new System.Drawing.Point(88, 19);
+            this.txtUser.Location = new System.Drawing.Point(179, 19);
             this.txtUser.Name = "txtUser";
             this.txtUser.Size = new System.Drawing.Size(185, 20);
             this.txtUser.TabIndex = 0;
+            this.txtUser.Text = "sa";
             // 
             // btnGetTables
             // 
-            this.btnGetTables.Location = new System.Drawing.Point(259, 213);
+            this.btnGetTables.Location = new System.Drawing.Point(278, 241);
             this.btnGetTables.Name = "btnGetTables";
             this.btnGetTables.Size = new System.Drawing.Size(75, 23);
             this.btnGetTables.TabIndex = 6;
@@ -296,7 +326,7 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(45, 74);
+            this.label3.Location = new System.Drawing.Point(136, 74);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(37, 13);
             this.label3.TabIndex = 3;
@@ -305,7 +335,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(23, 48);
+            this.label2.Location = new System.Drawing.Point(114, 48);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(59, 13);
             this.label2.TabIndex = 4;
@@ -314,7 +344,7 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(47, 22);
+            this.label1.Location = new System.Drawing.Point(138, 22);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(35, 13);
             this.label1.TabIndex = 3;
@@ -337,6 +367,16 @@
             this.WorkerSql.DoWork += new System.ComponentModel.DoWorkEventHandler(this.WorkerSql_DoWork);
             this.WorkerSql.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.WorkerSql_RunWorkerCompleted);
             // 
+            // btnSeleccionarTodos
+            // 
+            this.btnSeleccionarTodos.Location = new System.Drawing.Point(508, 227);
+            this.btnSeleccionarTodos.Name = "btnSeleccionarTodos";
+            this.btnSeleccionarTodos.Size = new System.Drawing.Size(146, 50);
+            this.btnSeleccionarTodos.TabIndex = 12;
+            this.btnSeleccionarTodos.Text = "Seleccionar Todos Los Registros";
+            this.btnSeleccionarTodos.UseVisualStyleBackColor = true;
+            this.btnSeleccionarTodos.Click += new System.EventHandler(this.btnSeleccionarTodos_Click);
+            // 
             // gvTablesSQL
             // 
             this.gvTablesSQL.AllowUserToAddRows = true;
@@ -347,13 +387,15 @@
             this.gvTablesSQL.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.chkSel,
             this.Id,
-            this.nombre});
-            this.gvTablesSQL.Location = new System.Drawing.Point(352, 4);
+            this.TableName,
+            this.Relacion,
+            this.TableLen});
+            this.gvTablesSQL.Location = new System.Drawing.Point(508, 4);
             this.gvTablesSQL.MultiSelect = true;
             this.gvTablesSQL.Name = "gvTablesSQL";
             this.gvTablesSQL.RowHeadersVisible = true;
             this.gvTablesSQL.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.gvTablesSQL.Size = new System.Drawing.Size(523, 150);
+            this.gvTablesSQL.Size = new System.Drawing.Size(366, 150);
             this.gvTablesSQL.TabIndex = 8;
             this.gvTablesSQL.VerticalScrollBarValue = 0;
             // 
@@ -376,22 +418,43 @@
             this.Id.ReadOnly = true;
             this.Id.Visible = false;
             // 
-            // nombre
+            // TableName
             // 
-            this.nombre.DataPropertyName = "Name";
-            this.nombre.HeaderText = "Name";
-            this.nombre.Name = "nombre";
-            this.nombre.ReadOnly = true;
+            this.TableName.DataPropertyName = "TableName";
+            this.TableName.HeaderText = "Name";
+            this.TableName.Name = "TableName";
+            this.TableName.ReadOnly = true;
             // 
-            // btnSeleccionarTodos
+            // Relacion
             // 
-            this.btnSeleccionarTodos.Location = new System.Drawing.Point(353, 227);
-            this.btnSeleccionarTodos.Name = "btnSeleccionarTodos";
-            this.btnSeleccionarTodos.Size = new System.Drawing.Size(185, 28);
-            this.btnSeleccionarTodos.TabIndex = 12;
-            this.btnSeleccionarTodos.Text = "Seleccionar Todos Los Registros";
-            this.btnSeleccionarTodos.UseVisualStyleBackColor = true;
-            this.btnSeleccionarTodos.Click += new System.EventHandler(this.btnSeleccionarTodos_Click);
+            this.Relacion.DataPropertyName = "Relacion";
+            this.Relacion.HeaderText = "Relacion";
+            this.Relacion.Name = "Relacion";
+            this.Relacion.Visible = false;
+            // 
+            // TableLen
+            // 
+            this.TableLen.DataPropertyName = "TableLen";
+            this.TableLen.HeaderText = "TableLen";
+            this.TableLen.Name = "TableLen";
+            this.TableLen.Visible = false;
+            // 
+            // txtTotalRegistros
+            // 
+            this.txtTotalRegistros.Location = new System.Drawing.Point(178, 168);
+            this.txtTotalRegistros.MaxLength = 9;
+            this.txtTotalRegistros.Name = "txtTotalRegistros";
+            this.txtTotalRegistros.Size = new System.Drawing.Size(144, 20);
+            this.txtTotalRegistros.TabIndex = 19;
+            // 
+            // label9
+            // 
+            this.label9.AutoSize = true;
+            this.label9.Location = new System.Drawing.Point(75, 171);
+            this.label9.Name = "label9";
+            this.label9.Size = new System.Drawing.Size(99, 13);
+            this.label9.TabIndex = 20;
+            this.label9.Text = "Total de Registros :";
             // 
             // ucSQLServer
             // 
@@ -441,9 +504,6 @@
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.TextBox txtSchema;
-        private System.Windows.Forms.DataGridViewCheckBoxColumn chkSel;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Id;
-        private System.Windows.Forms.DataGridViewTextBoxColumn nombre;
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Button btnPathScript;
         private System.Windows.Forms.TextBox txtPathScript;
@@ -451,5 +511,14 @@
         private System.Windows.Forms.RadioButton opComa;
         private System.Windows.Forms.RadioButton opPunto;
         private System.Windows.Forms.Button btnSeleccionarTodos;
+        private System.Windows.Forms.TextBox txtCantidadRegistrosPorArchivo;
+        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn chkSel;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Id;
+        private System.Windows.Forms.DataGridViewTextBoxColumn TableName;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Relacion;
+        private System.Windows.Forms.DataGridViewTextBoxColumn TableLen;
+        private System.Windows.Forms.TextBox txtTotalRegistros;
+        private System.Windows.Forms.Label label9;
     }
 }
